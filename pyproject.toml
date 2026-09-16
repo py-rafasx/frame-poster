@@ -17,6 +17,32 @@ dependencies = [
     "pyfiglet==1.0.4",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+    "mypy==2.3.1",
+]
+
+[tool.mypy]
+python_version = "3.13"
+files = ["main.py", "src", "tests"]
+mypy_path = "."
+explicit_package_bases = true
+namespace_packages = true
+show_error_codes = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+check_untyped_defs = false
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = ["yaml", "croniter", "langdetect"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"

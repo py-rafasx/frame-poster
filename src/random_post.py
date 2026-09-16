@@ -1,4 +1,4 @@
-﻿"""
+"""
 Random post mode: posts random frames from any configured episode.
 
 Ported from py-rafasx/rand-frame and adapted to the frame-poster architecture.
@@ -41,16 +41,26 @@ def _iter_episodes(config: CommentedMap):
             yield season, episode_data
 
 
-def _pick_random_frame(config: CommentedMap, history: FrameHistory):
+def _pick_random_frame(
+    config: CommentedMap,
+    history: FrameHistory,
+    pending: set | None = None,
+):
     """
     Pick a random (season, episode_data, frame_number) avoiding frames
     already posted in previous executions.
+
+    ``pending`` holds (episode, frame_number) pairs picked earlier in the
+    current cycle that have not been confirmed yet, preventing the two
+    panels of one post from being the same frame.
 
     When every frame of the configured episodes has already been used,
     the history is cleared and a new posting cycle begins.
 
     Returns None only when no candidate episodes exist in the config.
     """
+    pending = pending or set()
+
     candidates = [
         (season, episode_data)
         for season, episode_data in _iter_episodes(config)
@@ -74,6 +84,7 @@ def _pick_random_frame(config: CommentedMap, history: FrameHistory):
         entry
         for entry in pool
         if not history.is_frame_used(entry[1].get("episode"), entry[2])
+        and (entry[1].get("episode"), entry[2]) not in pending
     ]
 
     if not available:
@@ -86,8 +97,6 @@ def _pick_random_frame(config: CommentedMap, history: FrameHistory):
 
     season, episode_data, frame_number = choice(available)
 
-    # Mark as used immediately so retries do not hit the same frame
-    history.add_frame(episode_data.get("episode"), frame_number)
     return season, episode_data, frame_number
 
 
@@ -153,8 +162,7 @@ def _format_random_message(
         template_msg = two_panels_msg
         if not template_msg:
             logger.warning(
-                "TEMPLATE_RANDOM_TWO_PANELS_MSG not set, "
-                "falling back to TEMPLATE_RANDOM_FRAME_MSG"
+                "TEMPLATE_RANDOM_TWO_PANELS_MSG not set, falling back to TEMPLATE_RANDOM_FRAME_MSG"
             )
             template_msg = single_msg
     else:
@@ -207,9 +215,7 @@ def _post_random_frame(
     random_crop_config: dict,
 ) -> bool:
     """Upload and publish a random frame post (single or two panels)."""
-    message = _format_random_message(
-        single_msg, two_panels_msg, static_placeholders, framedata
-    )
+    message = _format_random_message(single_msg, two_panels_msg, static_placeholders, framedata)
     if not message:
         return False
 
@@ -274,15 +280,17 @@ def random_post(facebook_client: FacebookGraphAPI, config: CommentedMap) -> None
     print_random_header(config.get("filters", {}))
 
     for _ in range(fph):
+        pending_frames: set = set()
         try:
             filter_func = select_filter(config)
 
             if filter_func.__name__ == "two_panels":
                 framedata: list[dict] = []
                 for _ in range(2):
-                    picked = _pick_random_frame(config, history)
+                    picked = _pick_random_frame(config, history, pending_frames)
                     if not picked:
                         break
+                    pending_frames.add((picked[1].get("episode"), picked[2]))
                     data = _build_frame_data(filter_func.__name__, picked)
                     if not data:
                         break
@@ -293,11 +301,12 @@ def random_post(facebook_client: FacebookGraphAPI, config: CommentedMap) -> None
                     sleep(RETRY_DELAY_SECONDS)
                     continue
             else:
-                picked = _pick_random_frame(config, history)
+                picked = _pick_random_frame(config, history, pending_frames)
                 if not picked:
                     sleep(RETRY_DELAY_SECONDS)
                     continue
 
+                pending_frames.add((picked[1].get("episode"), picked[2]))
                 data = _build_frame_data(filter_func.__name__, picked)
                 if not data:
                     sleep(RETRY_DELAY_SECONDS)
@@ -331,6 +340,8 @@ def random_post(facebook_client: FacebookGraphAPI, config: CommentedMap) -> None
             posted = False
 
         if posted:
+            for data in framedata:
+                history.add_frame(data["episode"], data["frame_number"])
             sleep(posting_interval * 60)
         else:
             sleep(RETRY_DELAY_SECONDS)

@@ -9,11 +9,12 @@ It reads environment variables and generates a markdown table with the status of
 import os
 from collections.abc import Callable
 from enum import Enum
-from pathlib import Path
+
+from src.paths import project_path
 
 # GitHub Actions GITHUB_STEP_SUMMARY environment variable or default to summary.md for local testing
 SUMMARY_ENV = os.getenv("GITHUB_STEP_SUMMARY")
-SUMMARY_LOCAL_FILE = Path("summary.md")
+SUMMARY_LOCAL_FILE = project_path("summary.md")
 
 
 class Status(Enum):

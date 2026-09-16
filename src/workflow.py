@@ -11,12 +11,13 @@ import yaml
 from croniter import croniter
 
 from src.logger import get_logger
+from src.paths import project_path
 
 logger = get_logger(__name__)
 
 
 # Constants
-WORKFLOW_PATH = ".github/workflows/starter.yml"
+WORKFLOW_PATH = str(project_path(".github", "workflows", "starter.yml"))
 DEFAULT_RUNS = 20
 SECONDS_PER_HOUR = 3600
 
@@ -35,16 +36,22 @@ def _read_cron_expression(file_path: str = WORKFLOW_PATH) -> str | None:
     try:
         with Path(file_path).open("r") as f:
             content: dict = yaml.safe_load(f)
-            return content.get(True).get("schedule")[0].get("cron")
+            if not content:
+                return None
+            on_schedule = content.get(True)
+            if not on_schedule:
+                return None
+            schedule_list = on_schedule.get("schedule")
+            if not schedule_list:
+                return None
+            return schedule_list[0].get("cron")
     except (FileNotFoundError, KeyError, AttributeError) as e:
-        logger.error(f"Error reading cron expression: {e}")
+        logger.error("Error reading cron expression: %s", e)
         return None
 
 
 @lru_cache(maxsize=1)
-def _calc_average_run_interval(
-    cron_expr: str, runs: int = DEFAULT_RUNS
-) -> float | None:
+def _calc_average_run_interval(cron_expr: str, runs: int = DEFAULT_RUNS) -> float | None:
     """
     Calculates the average run interval in seconds for a given cron expression.
 
@@ -70,7 +77,7 @@ def _calc_average_run_interval(
 
         return mean(intervals)
     except Exception as e:
-        logger.error(f"Error calculating interval: {e}")
+        logger.error("Error calculating interval: %s", e)
         return None
 
 

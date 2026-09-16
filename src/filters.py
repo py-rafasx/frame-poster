@@ -13,9 +13,10 @@ from random import choices, randint
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont
 
 from src.logger import get_logger
+from src.paths import project_path
 
 # Define output directory for processed images
-OUTPUT_DIR = Path() / "images"
+OUTPUT_DIR = project_path("images")
 
 # Fixed height (in pixels) of the color palette strip generated below frames
 PALETTE_STRIP_HEIGHT = 50
@@ -59,7 +60,7 @@ def mirror(frame_path: Path) -> Path | None:
             offset_pixels = half_width * randint(50, 100) // 100
 
             sliver = img.crop((offset_pixels, 0, offset_pixels + half_width, height))
-            mirrored_sliver = sliver.transpose(Image.FLIP_LEFT_RIGHT)
+            mirrored_sliver = sliver.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
             output_img = Image.new("RGB", (width, height))
             output_img.paste(mirrored_sliver, (0, 0))
             output_img.paste(sliver, (half_width, 0))
@@ -124,9 +125,7 @@ def palette_filter(frame_path: Path) -> Path | None:
             quantized = small.quantize(colors=num_colors, dither=Image.Dither.NONE)
 
             raw_palette = quantized.getpalette() or []
-            colors = [
-                tuple(raw_palette[i : i + 3]) for i in range(0, num_colors * 3, 3)
-            ]
+            colors = [tuple(raw_palette[i : i + 3]) for i in range(0, num_colors * 3, 3)]
 
         def brightness(color: tuple[int, int, int]) -> int:
             r, g, b = color
@@ -219,10 +218,14 @@ def _warp(frame_path: Path, factor: float, filename: str) -> Path | None:
                     q3 = grid_points[(c + 1, r)]
 
                     quad = (
-                        q0[0], q0[1],
-                        q1[0], q1[1],
-                        q2[0], q2[1],
-                        q3[0], q3[1],
+                        q0[0],
+                        q0[1],
+                        q1[0],
+                        q1[1],
+                        q2[0],
+                        q2[1],
+                        q3[0],
+                        q3[1],
                     )
                     mesh.append((target_box, quad))
 

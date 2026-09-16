@@ -5,20 +5,17 @@ Logger module for application logging.
 import logging
 import re
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+
+from src.paths import project_path
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants
 # ─────────────────────────────────────────────────────────────────────────────
 
-LOGS_DIR = Path() / "logs"
-LOGS_DIR.mkdir(exist_ok=True)
+LOGS_DIR = project_path("logs")
 
 LOG_FILE = LOGS_DIR / "app.log"
 FACEBOOK_LOG = LOGS_DIR / "facebook.log"
-
-LOG_FILE.touch(exist_ok=True)
-FACEBOOK_LOG.touch(exist_ok=True)
 
 LOG_FORMAT = "[%(asctime)s] [%(levelname)s] [%(module)s:%(funcName)s:%(lineno)d] %(message)s"
 
@@ -150,13 +147,21 @@ class SanitizingFormatter(logging.Formatter):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+DEFAULT_LOG_LEVEL = logging.ERROR
+
+_root_configured = False
+
+
 def get_logger(
     name: str,
 ) -> logging.Logger:
     """
     Configures and returns a logger with sanitization.
 
-    The logger uses the globally configured timezone offset.
+    The root logging configuration (file + console handlers) is created only
+    once, on the first call, so importing a module has no side effects until a
+    logger is actually needed. The logger uses the globally configured timezone
+    offset.
 
     Args:
         name:
@@ -165,33 +170,38 @@ def get_logger(
     Returns:
         Configured logger instance.
     """
+    global _root_configured
 
-    formatter = SanitizingFormatter(
-        LOG_FORMAT,
-        DATE_FORMAT,
-    )
+    if not _root_configured:
+        LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
-    # File handler
-    file_handler = logging.FileHandler(
-        LOG_FILE,
-        encoding="utf-8",
-    )
+        formatter = SanitizingFormatter(
+            LOG_FORMAT,
+            DATE_FORMAT,
+        )
 
-    file_handler.setFormatter(formatter)
+        # File handler
+        file_handler = logging.FileHandler(
+            LOG_FILE,
+            encoding="utf-8",
+        )
 
-    # Console handler
-    console_handler = logging.StreamHandler()
+        file_handler.setFormatter(formatter)
 
-    console_handler.setFormatter(formatter)
+        # Console handler
+        console_handler = logging.StreamHandler()
 
-    # Configure logging
-    logging.basicConfig(
-        level=logging.ERROR,
-        handlers=[
-            file_handler,
-            console_handler,
-        ],
-    )
+        console_handler.setFormatter(formatter)
+
+        # Configure logging
+        logging.basicConfig(
+            level=DEFAULT_LOG_LEVEL,
+            handlers=[
+                file_handler,
+                console_handler,
+            ],
+        )
+        _root_configured = True
 
     return logging.getLogger(name)
 
@@ -254,11 +264,9 @@ def log_post_id(
     )
 
     try:
+        FACEBOOK_LOG.parent.mkdir(parents=True, exist_ok=True)
         with FACEBOOK_LOG.open("a", encoding="utf-8") as f:
             f.write(entry)
 
     except OSError as e:
-        logger.error(
-            "Failed to append to fb log (%s): %s",
-            FACEBOOK_LOG, e
-        )
+        logger.error("Failed to append to fb log (%s): %s", FACEBOOK_LOG, e)

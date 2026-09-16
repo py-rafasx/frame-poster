@@ -30,9 +30,7 @@ def create_post(
 
     post_id = facebook_client.create_unpublished_post(message, photo_id)
     if not post_id:
-        logger.error(
-            "Failed to create post: episode %s, frame %s", current_episode, frame_number
-        )
+        logger.error("Failed to create post: episode %s, frame %s", current_episode, frame_number)
         return None
 
     return post_id, photo_id

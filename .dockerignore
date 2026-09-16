@@ -7,5 +7,10 @@ __pycache__/
 logs/
 temp/
 images/
+frames/
+subtitles/
 .git/
 .gitignore
+.ruff_cache/
+fixs.txt
+summary.md

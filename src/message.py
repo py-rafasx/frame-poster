@@ -15,11 +15,11 @@ class SafeDict(dict):
 
 def format_message(message: str | None, placeholders: dict) -> str:
     """
-    Formata mensagem de forma segura, sem lançar exceção
-    se um placeholder não existir.
+    Format a message safely, without raising an exception when a
+    placeholder is missing.
 
-    Placeholders especiais de quebra de linha também são aceitos:
-    {newline}, {new_line}, {linebreak} e {br}.
+    Special newline placeholders are also accepted: {newline},
+    {new_line}, {linebreak} and {br}.
     """
     if message is None:
         logger.error("format_message received None as message template")

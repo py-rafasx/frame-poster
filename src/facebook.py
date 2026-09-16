@@ -5,7 +5,7 @@ from threading import Lock
 import httpx
 from tenacity import (
     retry,
-    retry_if_exception_type,
+    retry_if_exception,
     stop_after_attempt,
     wait_exponential,
 )
@@ -27,6 +27,18 @@ class ApiVersion(str, Enum):
     V25_0 = "v25.0"
 
 
+def _is_retryable_exception(exception: BaseException) -> bool:
+    """Return True when a Graph API failure should be retried.
+
+    Network errors are retried, but HTTP 401/403 (invalid/expired token or
+    missing permissions) are not, to avoid wasting retries on errors that
+    will not resolve on their own.
+    """
+    if isinstance(exception, httpx.HTTPStatusError):
+        return exception.response.status_code not in (401, 403)
+    return isinstance(exception, httpx.HTTPError)
+
+
 def _api_retry(error_callback):
     """Build a fresh retry decorator for Graph API calls.
 
@@ -37,7 +49,7 @@ def _api_retry(error_callback):
     return retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type(httpx.HTTPError),
+        retry=retry_if_exception(_is_retryable_exception),
         before_sleep=lambda retry_state: logger.warning(
             "%s failed (attempt %d), retrying...",
             getattr(retry_state.fn, "__name__", "graph-api-call"),
@@ -78,6 +90,9 @@ def _fail_token(retry_state) -> tuple[bool, str]:
         reason,
     )
     return False, reason
+
+
+BIO_MAX_LENGTH = 101
 
 
 class FacebookGraphAPI:
@@ -252,7 +267,7 @@ class FacebookGraphAPI:
 
     @_api_retry(_fail_false)
     def update_bio(self, message: str) -> bool:
-        """Update the Facebook bio.
+        """Update the Facebook bio/description.
 
         Args:
             message: New bio message.
@@ -264,9 +279,11 @@ class FacebookGraphAPI:
             logger.info("Bio message is empty, skipping update.")
             return True
 
-        if len(message) > 101:
-            logger.warning("Bio message is too long, truncating to 101 characters.", exc_info=True)
-            message = message[:101]
+        if len(message) > BIO_MAX_LENGTH:
+            logger.warning(
+                "Bio message is too long, truncating to %d characters.", BIO_MAX_LENGTH
+            )
+            message = message[:BIO_MAX_LENGTH]
 
         response = self.client.post("/me", params={"about": message}, headers=self._headers)
         response.raise_for_status()

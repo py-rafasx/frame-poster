@@ -90,7 +90,7 @@ def validate_config(config: CommentedMap) -> None:
 
     if errors:
         raise ConfigValidationError(
-            f"config.yml validation failed with {len(errors)} error(s), check logs above"
+            f"config.yml validation failed with {len(errors)} error(s): {'; '.join(errors)}"
         )
 
 
@@ -172,14 +172,15 @@ def _validate_episodes(episodes: list, season_index: int, errors: list[str]) -> 
         }
 
         for field, expected_types in required.items():
+            allowed = expected_types if isinstance(expected_types, tuple) else (expected_types,)
             if field not in episode:
                 _report(
                     errors,
                     f"season [{season_index}].episode index [{i}]: "
                     f"missing required field '{field}'",
                 )
-            elif not isinstance(episode[field], expected_types):
-                type_name = " or ".join(t.__name__ for t in expected_types)
+            elif not isinstance(episode[field], allowed):
+                type_name = " or ".join(t.__name__ for t in allowed)
                 _report(
                     errors,
                     f"season [{season_index}].episode index [{i}]: "

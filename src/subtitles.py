@@ -6,10 +6,11 @@ from langdetect import detect
 
 from src.frame_utils import timestamp_to_seconds
 from src.logger import get_logger
+from src.paths import project_path
 
 logger = get_logger(__name__)
 
-SUBTITLES_DIR = Path() / "subtitles"
+SUBTITLES_DIR = project_path("subtitles")
 
 LANGUAGE_CODES = {
     "en": "English",
@@ -97,16 +98,16 @@ def _parse_ass(cleaned_text: str) -> list[dict]:
         if line.startswith("Dialogue:"):
             parts = line.split(",", 9)
             line_data = {
-                "Layer"     : parts[0],
-                "Start"     : timestamp_to_seconds(parts[1]),
-                "End"       : timestamp_to_seconds(parts[2]),
-                "Style"     : parts[3],
-                "Actor"     : parts[4],
-                "MarginL"   : parts[5],
-                "MarginR"   : parts[6],
-                "MarginV"   : parts[7],
-                "Effect"    : parts[8],
-                "Text"      : parts[9],
+                "Layer": parts[0],
+                "Start": timestamp_to_seconds(parts[1]),
+                "End": timestamp_to_seconds(parts[2]),
+                "Style": parts[3],
+                "Actor": parts[4],
+                "MarginL": parts[5],
+                "MarginR": parts[6],
+                "MarginV": parts[7],
+                "Effect": parts[8],
+                "Text": parts[9],
             }
 
             dialogues_data.append(line_data)
@@ -210,22 +211,22 @@ def get_subtitle(
     for file in files:
         match file.suffix:
             case ".ass":
-                raw_text        = _extract_raw_text(file)
-                cleaned_text    = _remove_tags(raw_text)
-                lang            = _get_lang(cleaned_text)
-                dialogues_data  = _parse_ass(cleaned_text)
-                sub             = _find_subtext(frame_number, img_fps, dialogues_data)
+                raw_text = _extract_raw_text(file)
+                cleaned_text = _remove_tags(raw_text)
+                lang = _get_lang(cleaned_text)
+                dialogues_data = _parse_ass(cleaned_text)
+                sub = _find_subtext(frame_number, img_fps, dialogues_data)
 
                 if sub:
                     text = _ass_format(sub)
                     subtitle_results.append({"lang": lang, "text": text})
 
             case ".srt":
-                raw_text        = _extract_raw_text(file)
-                cleaned_text    = _remove_tags(raw_text)
-                lang            = _get_lang(cleaned_text)
-                dialogues_data  = _parse_srt(cleaned_text)
-                sub             = _find_subtext(frame_number, img_fps, dialogues_data)
+                raw_text = _extract_raw_text(file)
+                cleaned_text = _remove_tags(raw_text)
+                lang = _get_lang(cleaned_text)
+                dialogues_data = _parse_srt(cleaned_text)
+                sub = _find_subtext(frame_number, img_fps, dialogues_data)
 
                 if sub:
                     text = _srt_format(sub)

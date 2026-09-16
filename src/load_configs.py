@@ -1,9 +1,9 @@
-from pathlib import Path
-
-from ruamel.yaml import YAML
+from ruamel.yaml import YAML, YAMLError
 from ruamel.yaml.comments import CommentedMap
 
 from src.config_validator import validate_config
+from src.logger import get_logger
+from src.paths import project_path
 
 yaml = YAML()
 yaml.preserve_quotes = True
@@ -13,7 +13,9 @@ yaml.indent(
     offset=2,
 )
 
-CONFIG_PATH = Path() / "config.yml"
+logger = get_logger(__name__)
+
+CONFIG_PATH = project_path("config.yml")
 
 
 def load_configs() -> CommentedMap:
@@ -26,9 +28,9 @@ def load_configs() -> CommentedMap:
     try:
         with open(CONFIG_PATH, encoding="utf-8") as file:
             return yaml.load(file)
-    except (Exception, OSError) as e:
-        print(f"Error loading config file {CONFIG_PATH}: {e}")
-        return {}
+    except (YAMLError, OSError) as e:
+        logger.error("Error loading config file %s: %s", CONFIG_PATH, e)
+        return CommentedMap()
 
 
 def load_and_validate() -> CommentedMap:
@@ -59,5 +61,5 @@ def save_configs(config: CommentedMap) -> None:
     try:
         with open(CONFIG_PATH, "w", encoding="utf-8") as file:
             yaml.dump(config, file)
-    except (Exception, OSError) as e:
-        print(f"Error saving config file {CONFIG_PATH}: {e}")
+    except (YAMLError, OSError) as e:
+        logger.error("Error saving config file %s: %s", CONFIG_PATH, e)

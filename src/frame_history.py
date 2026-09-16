@@ -8,9 +8,9 @@ when it reaches ``MAX_FRAMES`` entries.
 """
 
 import json
-from pathlib import Path
 
 from src.logger import get_logger
+from src.paths import project_path
 
 logger = get_logger(__name__)
 
@@ -25,7 +25,7 @@ class FrameHistory:
     MAX_FRAMES = 5000
 
     def __init__(self, history_file: str = "frame_history.json"):
-        self.history_file = Path() / "temp" / history_file
+        self.history_file = project_path("temp") / history_file
         self.used_frames: set[tuple[str | int, int]] = set()
 
         # Create temp directory if it doesn't exist
@@ -62,22 +62,23 @@ class FrameHistory:
         Add a frame to the history and persist it.
 
         When the history reaches MAX_FRAMES it is cleared automatically,
-        allowing all frames to be posted again in a new cycle.
+        allowing all frames to be posted again in a new cycle. The frame that
+        triggers the reset becomes the first entry of the new cycle instead of
+        being lost.
 
         Args:
             episode: Episode identifier (number or string).
             frame_number: The frame number.
         """
-        self.used_frames.add((episode, frame_number))
-
         if len(self.used_frames) >= self.MAX_FRAMES:
             logger.info(
                 "Frame history reached %d entries, clearing for a new cycle",
                 self.MAX_FRAMES,
             )
-            self.clear_history()
-        else:
-            self._save_history()
+            self.used_frames.clear()
+
+        self.used_frames.add((episode, frame_number))
+        self._save_history()
 
     def is_frame_used(self, episode: str | int, frame_number: int) -> bool:
         """Return True if the given (episode, frame) pair was already posted."""
