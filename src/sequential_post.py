@@ -1,4 +1,5 @@
 from time import sleep
+from typing import cast
 
 from ruamel.yaml import CommentedMap
 
@@ -27,7 +28,9 @@ def _save_progress(config: CommentedMap, season, episode, frame):
 
 def _advance_episode(config: CommentedMap, seasons_list: list, current_season, current_episode):
     """Advance progress to the next episode (or next season if last episode)."""
-    season_data = next((s for s in seasons_list if s.get("season") == current_season), {})
+    season_data: CommentedMap = cast(
+        CommentedMap, next((s for s in seasons_list if s.get("season") == current_season), {})
+    )
     episodes = season_data.get("episodes", [])
 
     current_idx = next(
@@ -56,7 +59,9 @@ def _advance_episode(config: CommentedMap, seasons_list: list, current_season, c
         else:
             logger.info(
                 "All episodes posted. Progress: S%sE%s frame %d",
-                current_season, current_episode, config["progress"]["frame"],
+                current_season,
+                current_episode,
+                config["progress"]["frame"],
             )
 
 
@@ -70,7 +75,7 @@ def _count_episodes(seasons_list: list, current_season: int) -> int:
     return total
 
 
-def sequencial_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
+def sequential_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
     # --- current progress ---
     progress = config.get("progress", {})
     current_season = progress.get("season", 1)
@@ -78,12 +83,15 @@ def sequencial_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
 
     # --- season and episode data ---
     seasons_list = config.get("seasons", [])
-    season_data = next(
-        (s for s in seasons_list if s.get("season") == current_season), {}
+    season_data: CommentedMap = cast(
+        CommentedMap, next((s for s in seasons_list if s.get("season") == current_season), {})
     )
-    episode_data = next(
-        (ep for ep in season_data.get("episodes", []) if ep.get("episode") == current_episode),
-        {},
+    episode_data: CommentedMap = cast(
+        CommentedMap,
+        next(
+            (ep for ep in season_data.get("episodes", []) if ep.get("episode") == current_episode),
+            {},
+        ),
     )
 
     if not episode_data:
@@ -100,6 +108,7 @@ def sequencial_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
     album_id = episode_data.get("album_id")
 
     template_msg = config.get("TEMPLATE_POST_MSG")
+    template_bio = config.get("TEMPLATE_BIO_MSG")
 
     # --- limits ---
     current_frame = max(1, progress.get("frame", 0))
@@ -118,6 +127,7 @@ def sequencial_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
         "season": current_season,
         "episode": current_episode,
         "title": episode_data.get("title", ""),
+        "episode_title": episode_data.get("title", ""),
         "max_frames": max_frames,
         "img_fps": img_fps,
         "fph": fph,
@@ -125,12 +135,8 @@ def sequencial_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
         "execution_interval": get_workflow_interval_hours(),
     }
 
-
-
     # --- post loop ---
     print_sequential_header(current_season, current_episode, current_frame, max_frames)
-
-
 
     for frame_number in range(current_frame, stop_frame):
         if frame_number > max_frames:
@@ -142,7 +148,9 @@ def sequencial_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
         if not frame_path:
             logger.error(
                 "Failed to get frame %d for episode %d (github_repo: %s)",
-                frame_number, current_episode, github_repo,
+                frame_number,
+                current_episode,
+                github_repo,
             )
             break
 
@@ -163,7 +171,8 @@ def sequencial_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
         if not post_message:
             logger.error(
                 "Template post message is empty: episode %s, frame %s",
-                current_episode, frame_number,
+                current_episode,
+                frame_number,
             )
             break
 
@@ -191,8 +200,12 @@ def sequencial_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
         if album_repost_enabled and album_id:
             album_name = facebook_client.album_name(str(album_id))
             album_repost(
-                facebook_client, photo_id, post_message,
-                frame_path, album_id, album_repost_enabled,
+                facebook_client,
+                photo_id,
+                post_message,
+                frame_path,
+                album_id,
+                album_repost_enabled,
             )
 
         # print status block to console
@@ -201,6 +214,7 @@ def sequencial_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
             episode=current_episode,
             total_episodes=total_episodes,
             frame=frame_number,
+            index_fph=frame_number - current_frame + 1,
             fph=fph,
             max_frames=max_frames,
             has_subtitles=has_subtitles,
@@ -212,4 +226,49 @@ def sequencial_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
         # save progress after each successful post
         _save_progress(config, current_season, current_episode, frame_number)
 
-        sleep(posting_interval * 60) # 2 * 60 = 2 minutus
+        sleep(posting_interval * 60)  # e.g. 2 min = 120 seconds
+
+    # -------------------------------------------------------------------------
+    # Update the page bio after the posting cycle
+    # -------------------------------------------------------------------------
+    bio_template = config.get("TEMPLATE_BIO_MSG")
+    if bio_template:
+        final_progress = config.get("progress", {})
+        final_season = final_progress.get("season", current_season)
+        final_episode = final_progress.get("episode", current_episode)
+        final_frame = final_progress.get("frame", 0)
+        final_season_data = next(
+            (season for season in seasons_list if season.get("season") == final_season), {}
+        )
+        final_episode_data = next(
+            (
+                episode
+                for episode in final_season_data.get("episodes", [])
+                if episode.get("episode") == final_episode
+            ),
+            {},
+        )
+        final_img_fps = final_episode_data.get("img_fps")
+        final_subtitles = (
+            get_subtitle(final_season, final_episode, final_frame, final_img_fps)
+            if final_frame
+            else []
+        )
+        final_placeholders = {
+            "season": final_season,
+            "episode": final_episode,
+            "title": final_episode_data.get("title", ""),
+            "episode_title": final_episode_data.get("title", ""),
+            "frame_number": final_frame,
+            "max_frames": final_episode_data.get("max_frames", 0),
+            "img_fps": final_img_fps,
+            "fph": fph,
+            "post_interval": posting_interval,
+            "execution_interval": get_workflow_interval_hours(),
+            "timestamp": frame_to_timestamp(final_frame, final_img_fps) or "",
+            "subtitles": final_subtitles,
+        }
+        bio_message = format_message(bio_template, final_placeholders)
+        if bio_message:
+            facebook_client.update_bio(bio_message)
+

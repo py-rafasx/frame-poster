@@ -5,8 +5,6 @@ Provides a shared Console instance and helper functions to keep
 print-based output consistent, colorful, and easy to read.
 """
 
-import argparse
-
 import pyfiglet
 from rich.console import Console
 from rich.markup import escape
@@ -76,12 +74,12 @@ def print_random_header(filters: dict | None = None) -> None:
     console.print(SEPARATOR)
 
 
-
 def print_post_status(
     season: int | str,
     episode: int | str,
     total_episodes: int,
     frame: int,
+    index_fph: int,
     fph: int,
     max_frames: int,
     has_subtitles: bool,
@@ -111,7 +109,7 @@ def print_post_status(
     lines = [
         f"season        : {season}",
         f"episode       : {episode}/{total_episodes}",
-        f"frame         : {frame}/{fph} of {max_frames}" ,
+        f"frame         : {index_fph}/{fph} of {frame}/{max_frames}",
         f"subtitles     : {sub_status}",
         f"random_crop   : {crop_status}",
         f"repost in     : {repost_status}",
@@ -171,17 +169,3 @@ def print_random_status(
     ]
 
     console.print("\n".join(lines))
-
-
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Run frame-poster with centralized config and token override."
-    )
-
-    parser.add_argument(
-        "--fb-token",
-        default=None,
-        help="Facebook access token to use for this run. Overrides FB_TOKEN environment variable.",
-    )
-    return parser.parse_args(argv)
