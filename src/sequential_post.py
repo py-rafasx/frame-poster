@@ -126,7 +126,6 @@ def sequential_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
     static_placeholders = {
         "season": current_season,
         "episode": current_episode,
-        "title": episode_data.get("title", ""),
         "episode_title": episode_data.get("title", ""),
         "max_frames": max_frames,
         "img_fps": img_fps,
@@ -233,41 +232,32 @@ def sequential_post(facebook_client: FacebookGraphAPI, config: CommentedMap):
     # -------------------------------------------------------------------------
     bio_template = config.get("TEMPLATE_BIO_MSG")
     if bio_template:
-        final_progress = config.get("progress", {})
-        final_season = final_progress.get("season", current_season)
-        final_episode = final_progress.get("episode", current_episode)
-        final_frame = final_progress.get("frame", 0)
-        final_season_data = next(
-            (season for season in seasons_list if season.get("season") == final_season), {}
+        current_season  = progress["season"]
+        current_episode = progress["episode"]
+        current_frame   = progress["frame"]
+
+        season_data = next(
+            season_data
+            for season_data in seasons_list
+            if season_data["season"] == current_season
         )
-        final_episode_data = next(
-            (
-                episode
-                for episode in final_season_data.get("episodes", [])
-                if episode.get("episode") == final_episode
-            ),
-            {},
-        )
-        final_img_fps = final_episode_data.get("img_fps")
-        final_subtitles = (
-            get_subtitle(final_season, final_episode, final_frame, final_img_fps)
-            if final_frame
-            else []
+        episode_data = next(
+            episode_data
+            for episode in season_data["episodes"]
+            if episode_data["episode"] == current_episode
         )
         final_placeholders = {
-            "season": final_season,
-            "episode": final_episode,
-            "title": final_episode_data.get("title", ""),
-            "episode_title": final_episode_data.get("title", ""),
-            "frame_number": final_frame,
-            "max_frames": final_episode_data.get("max_frames", 0),
-            "img_fps": final_img_fps,
+            "season": current_season,
+            "episode": current_episode,
+            "episode_title": episode_data.get("title", ""),
+            "frame_number": current_frame,
+            "max_frames": episode_data.get("max_frames", 0),
+            "img_fps": episode_data.get("img_fps"),
             "fph": fph,
             "post_interval": posting_interval,
             "execution_interval": get_workflow_interval_hours(),
-            "timestamp": frame_to_timestamp(final_frame, final_img_fps) or "",
-            "subtitles": final_subtitles,
         }
+
         bio_message = format_message(bio_template, final_placeholders)
         if bio_message:
             facebook_client.update_bio(bio_message)

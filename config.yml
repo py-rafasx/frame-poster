@@ -54,7 +54,7 @@ seasons:                                                # type: list of objects
 progress:                                             # type: object
   season: 1                                           # type: integer | string - Current season number
   episode: 1                                          # type: integer | string - Current episode number/index
-  frame: 1136                                         # type: integer - Current frame number (0 = not started, starts from 1)
+  frame: 1137                                         # type: integer - Current frame number (0 = not started, starts from 1)
 
 # ======================================================================================================================
 # Message Templates
@@ -68,7 +68,7 @@ progress:                                             # type: object
 #   {fph}             - The frames per hour posting rate
 #   {timestamp}       - The timestamp of the frame
 #   {subtitles}       - The subtitles of the frame
-#   {episode_title}   - The title of the episode
+#   {episode_title}   - The title of the current episode
 #   {post_interval}   - The interval between posts in minutes
 #   {execution_interval} - The interval between script executions in hours
 #
@@ -114,7 +114,7 @@ TEMPLATE_RANDOM_TWO_PANELS_MSG: |                     # type: string - Template 
 # Posting Configuration
 # ======================================================================================================================
 posting:                                              # type: object
-  fph: 15                                             # type: integer - Frames posted per hour (for execution interval calculation)
+  fph: 1                                              # type: integer - Frames posted per hour (for execution interval calculation)
   post_interval: 2                                    # type: integer - Interval between posts in minutes (recommended: 2+)
   sub_comment: true                                   # type: boolean - Post subtitles in comments if available (you can use subtitle in TEMPLATE_POST_MSG even if sub_comment is false)
   album_repost: true                                  # type: boolean - Repost frames to Facebook album (sequential mode only, ignored by random_post)

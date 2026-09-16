@@ -174,7 +174,6 @@ def _format_random_message(
         "season": first["season"],
         "episode": first["episode"],
         "episode_title": first["title"],
-        "title": first["title"],
         "frame_number": first["frame_number"],
         "timestamp": first["timestamp"],
         "subtitles": first["subtitles"],
