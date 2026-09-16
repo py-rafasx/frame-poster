@@ -54,7 +54,7 @@ seasons:                                                # type: list of objects
 progress:                                             # type: object
   season: 1                                           # type: integer | string - Current season number
   episode: 1                                          # type: integer | string - Current episode number/index
-  frame: 1137                                         # type: integer - Current frame number (0 = not started, starts from 1)
+  frame: 1163                                         # type: integer - Current frame number (0 = not started, starts from 1)
 
 # ======================================================================================================================
 # Message Templates
